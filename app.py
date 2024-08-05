@@ -73,6 +73,10 @@ def stream():
     top_p = float(request.form.get("top_p", 0.9))
     top_k = int(request.form.get("top_k", 50))
     max_tokens = int(request.form.get("max_tokens", 4096))
+    system_prompt = request.form.get(
+        "system_prompt",
+        "You are a helpful chat bot that can analyze images, documents, and answer questions about them.",
+    )
 
     # logging.debug(f"Received user input: {user_input}")
 
@@ -111,8 +115,8 @@ def stream():
 
     def generate():
         global messages
-        model_id = "anthropic.claude-3-5-sonnet-20240620-v1:0"
-        system_prompt = """You are a helpful chat bot that can analyze images, documents, and answer questions about them. Use Markdown formatting for your responses."""
+        model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
+        # system_prompt = """You are a helpful chat bot that can analyze images, documents, and answer questions about them. Use Markdown formatting for your responses."""
 
         system_prompts = [{"text": system_prompt}]
         inference_config = {
