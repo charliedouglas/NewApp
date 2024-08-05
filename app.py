@@ -1,4 +1,11 @@
-from flask import Flask, render_template, request, Response, stream_with_context
+from flask import (
+    Flask,
+    render_template,
+    request,
+    Response,
+    stream_with_context,
+    jsonify,
+)
 import boto3
 import json
 import os
@@ -6,7 +13,6 @@ from dotenv import load_dotenv
 import logging
 import base64
 from io import BytesIO
-import jsonify
 import uuid
 
 load_dotenv()
@@ -36,19 +42,12 @@ def new_chat():
     messages = []
     try:
         # Reset the Bedrock conversation
-        bedrock.invoke_model(
-            body=json.dumps(
-                {
-                    "prompt": "Start a new conversation",
-                    "max_tokens_to_sample": 1,
-                    "temperature": 0,
-                    "top_p": 1,
-                }
-            ),
-            modelId="anthropic.claude-3-5-sonnet-20240620-v1:0",
-            accept="application/json",
-            contentType="application/json",
+        bedrock_client = boto3.client("bedrock-agent-runtime")
+
+        response = bedrock_client.converse_stream(
+            memoryId=uuid.uuid4().hex, inputText="Hello"
         )
+
         return jsonify(
             {"status": "success", "message": "Chat history cleared successfully"}
         )
