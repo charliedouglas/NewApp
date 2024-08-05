@@ -152,7 +152,18 @@ function addCopyButton(pre, block) {
             }, 2000);
         });
     });
-    pre.appendChild(copyButton);
+
+    const language = block.className.split('-')[1].replace('hljs', '').trim();
+    const languageDisplay = document.createElement('span');
+    languageDisplay.textContent = language;
+    languageDisplay.className = 'language-display';
+
+    const topBar = document.createElement('div');
+    topBar.className = 'code-top-bar';
+    topBar.appendChild(languageDisplay);
+    topBar.appendChild(copyButton);
+
+    pre.insertBefore(topBar, block);
 }
    
 function fetchBotResponse(message, fileData = null, fileType = null) {
@@ -422,5 +433,42 @@ function fetchBotResponse(message, fileData = null, fileType = null) {
         50% { opacity: 1; }
         100% { opacity: 0; }
     }
+
+    .code-top-bar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    background-color: #3e4451;
+    padding: 0.25em 0.5em;
+    border-bottom: 1px solid #4b5363;
+}
+
+.language-display {
+    color: #abb2bf;
+    font-size: 0.75em;
+}
+
+.copy-button {
+    background-color: #3e4451;
+    color: #abb2bf;
+    border: none;
+    border-radius: 4px;
+    cursor: pointer;
+    font-size: 0.75em;
+    padding: 0.25em 0.5em;
+}
+
+.copy-button:hover {
+    background-color: #4b5363;
+}
+
+.prose pre {
+    padding-top: 0;
+}
+
+.prose pre code {
+    padding-top: 0.5em;
+}
+
 </style>
 {% endblock %}
