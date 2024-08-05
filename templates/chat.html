@@ -25,6 +25,10 @@
             </header>
             <main id="chat-container" class="chat-messages flex-1 overflow-y-auto"></main>
             <footer class="chat-input-container">
+                <div id="file-preview" class="file-preview" style="display: none;">
+                    <div class="preview-content"></div>
+                    <button id="close-preview" class="close-preview">&times;</button>
+                </div>
                 <form id="chat-form" class="chat-form">
                     <div class="input-wrapper">
                         <textarea id="user-input" class="chat-input" placeholder="Type a message..." rows="1"></textarea>
@@ -163,22 +167,56 @@
                 displayFilePreview(file.name, currentFileType);
             };
             reader.readAsDataURL(file);
-        }
-    }
-    
-    function displayFilePreview(fileName, fileType) {
-        if (fileType === 'image') {
-            filePreview.innerHTML = `<img src="data:image/jpeg;base64,${currentFileData}" alt="Uploaded image" style="max-width: 100px; max-height: 100px;">`;
         } else {
-            filePreview.innerHTML = `<span>${fileName}</span>`;
+            clearFilePreview(); // Clear preview if no file is selected
         }
     }
     
-    function clearFilePreview() {
-        filePreview.innerHTML = '';
-        currentFileData = null;
-        currentFileType = null;
+    document.addEventListener('DOMContentLoaded', function() {
+        setupClosePreview();
+        
+        const fileInput = document.getElementById('file-upload');
+        fileInput.addEventListener('change', function() {
+            if (!this.files || this.files.length === 0) {
+                clearFilePreview();
+            }
+        });
+    });
+
+function displayFilePreview(fileName, fileType) {
+    const previewElement = document.getElementById('file-preview');
+    const previewContent = previewElement.querySelector('.preview-content');
+    if (fileType === 'image') {
+        previewContent.innerHTML = `<img src="data:image/jpeg;base64,${currentFileData}" alt="Uploaded image" class="preview-image">`;
+    } else {
+        previewContent.innerHTML = `<span class="preview-document">${fileName}</span>`;
     }
+    previewElement.style.display = 'flex';
+}
+
+function clearFilePreview() {
+    const previewElement = document.getElementById('file-preview');
+    previewElement.querySelector('.preview-content').innerHTML = '';
+    previewElement.style.display = 'none';
+    currentFileData = null;
+    currentFileType = null;
+    
+    // Clear the file input
+    const fileInput = document.getElementById('file-upload');
+    fileInput.value = '';
+}
+
+// Add this function to handle the close button
+function setupClosePreview() {
+    const closeButton = document.getElementById('close-preview');
+    closeButton.addEventListener('click', function(e) {
+        e.preventDefault(); // Prevent any default button behavior
+        clearFilePreview();
+    });
+}
+
+// Call this function when the page loads
+document.addEventListener('DOMContentLoaded', setupClosePreview);
     
     chatContainer.addEventListener('dragover', (e) => {
         e.preventDefault();
@@ -893,6 +931,54 @@ document.getElementById('new-chat').addEventListener('click', function(e) {
     padding: 0.5rem;
     margin-bottom: 1rem;
     border-radius: 0.5rem;
+}
+
+.file-preview {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 0.5rem;
+    min-height: 50px;
+    background-color: #f0f0f0;
+    border-radius: 4px;
+    padding: 0.5rem;
+}
+
+.preview-content {
+    display: flex;
+    align-items: center;
+}
+
+.close-preview {
+    background: none;
+    border: none;
+    font-size: 1.5rem;
+    cursor: pointer;
+    color: #888;
+    padding: 0 0.5rem;
+}
+
+.close-preview:hover {
+    color: #333;
+}
+
+.preview-image {
+    max-width: 100px;
+    max-height: 100px;
+    object-fit: cover;
+    border-radius: 4px;
+}
+
+.preview-document {
+    max-width: 200px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    font-size: 0.9rem;
+    color: #555;
+    background-color: #e0e0e0;
+    padding: 0.25rem 0.5rem;
+    border-radius: 4px;
 }
 
     </style>
