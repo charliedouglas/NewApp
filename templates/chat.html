@@ -319,24 +319,30 @@
     // Reset the textarea height
     userInput.style.height = 'auto';
     
-    // You may want to add a welcome message here
-    appendMessage('bot', 'Welcome to a new chat! How can I help you today?');
-    
-    // If you're keeping track of messages on the client side, reset that as well
-    // messages = [];
-
-        // Clear chat history on the server
+    // Clear chat history on the server
     fetch('/new_chat', {
         method: 'POST',
-    }).then(response => response.json())
+        headers: {
+            'Content-Type': 'application/json',
+        },
+    })
+    .then(response => {
+        if (!response.ok) {
+            throw new Error('Network response was not ok');
+        }
+        return response.json();
+    })
     .then(data => {
         if (data.status === 'success') {
-            console.log('Chat history cleared on server');
+            console.log('Chat history cleared on server:', data.message);
+        } else {
+            console.error('Error clearing chat history:', data.message);
         }
-    }).catch(error => {
+    })
+    .catch(error => {
         console.error('Error clearing chat history:', error);
     });
-    
+
     // Close the sidebar on mobile after starting a new chat
     if (window.innerWidth < 768) {
         sidebar.classList.add('-translate-x-full');

@@ -7,6 +7,7 @@ import logging
 import base64
 from io import BytesIO
 import jsonify
+import uuid
 
 load_dotenv()
 app = Flask(__name__)
@@ -33,10 +34,29 @@ def chat():
 def new_chat():
     global messages
     messages = []
-    return jsonify({"status": "success"})
+    try:
+        # Reset the Bedrock conversation
+        bedrock.invoke_model(
+            body=json.dumps(
+                {
+                    "prompt": "Start a new conversation",
+                    "max_tokens_to_sample": 1,
+                    "temperature": 0,
+                    "top_p": 1,
+                }
+            ),
+            modelId="anthropic.claude-3-5-sonnet-20240620-v1:0",
+            accept="application/json",
+            contentType="application/json",
+        )
+        return jsonify(
+            {"status": "success", "message": "Chat history cleared successfully"}
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
 
 
-logging.basicConfig(level=logging.DEBUG)
+# logging.basicConfig(level=logging.DEBUG)
 
 messages = []
 
@@ -48,7 +68,7 @@ def stream():
     image_data = request.form.get("image_data")
     document_data = request.form.get("document_data")
 
-    logging.debug(f"Received user input: {user_input}")
+    # logging.debug(f"Received user input: {user_input}")
 
     if not user_input and not image_data and not document_data:
         return (
@@ -97,6 +117,8 @@ def stream():
             # "maxTokens": 4096,
         }
         additional_model_fields = {}
+
+        # generate a unique seession id using UUID
 
         try:
             response = bedrock.converse_stream(
