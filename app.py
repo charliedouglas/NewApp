@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 import logging
 import base64
 from io import BytesIO
+import jsonify
 
 load_dotenv()
 app = Flask(__name__)
@@ -26,6 +27,13 @@ def home():
 @app.route("/chat", methods=["GET"])
 def chat():
     return render_template("chat.html")
+
+
+@app.route("/new_chat", methods=["POST"])
+def new_chat():
+    global messages
+    messages = []
+    return jsonify({"status": "success"})
 
 
 logging.basicConfig(level=logging.DEBUG)

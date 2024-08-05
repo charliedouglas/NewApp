@@ -11,6 +11,7 @@
         </button>
         <nav>
             <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Home</a>
+            <a href="#" id="new-chat" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">New Chat</a>
             <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Chat History</a>
             <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Settings</a>
             <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Help</a>
@@ -300,6 +301,55 @@
             botMessageElement.innerHTML = 'Error: Failed to connect to the server. Please try again.';
         });
     }
+
+    function startNewChat() {
+    // Clear the chat container
+    chatContainer.innerHTML = '';
+    
+    // Clear any uploaded file data
+    currentFileData = null;
+    currentFileType = null;
+    
+    // Clear the file preview
+    clearFilePreview();
+    
+    // Clear the user input
+    userInput.value = '';
+    
+    // Reset the textarea height
+    userInput.style.height = 'auto';
+    
+    // You may want to add a welcome message here
+    appendMessage('bot', 'Welcome to a new chat! How can I help you today?');
+    
+    // If you're keeping track of messages on the client side, reset that as well
+    // messages = [];
+
+        // Clear chat history on the server
+    fetch('/new_chat', {
+        method: 'POST',
+    }).then(response => response.json())
+    .then(data => {
+        if (data.status === 'success') {
+            console.log('Chat history cleared on server');
+        }
+    }).catch(error => {
+        console.error('Error clearing chat history:', error);
+    });
+    
+    // Close the sidebar on mobile after starting a new chat
+    if (window.innerWidth < 768) {
+        sidebar.classList.add('-translate-x-full');
+        adjustLayout();
+    }
+}
+
+document.getElementById('new-chat').addEventListener('click', function(e) {
+    e.preventDefault();
+    if (confirm('Are you sure you want to start a new chat? This will clear the current conversation.')) {
+        startNewChat();
+    }
+});
 
     // Sidebar toggle functionality
     sidebarToggle.addEventListener('click', () => {
