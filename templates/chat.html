@@ -21,6 +21,7 @@
 {% block scripts %}
 <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.10/purify.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/atom-one-dark.min.css">
 <script>
 const chatbotContainer = document.getElementById('chatbot-container');
@@ -47,7 +48,7 @@ chatForm.addEventListener('submit', function(e) {
     e.preventDefault();
     const message = userInput.value.trim();
     if (message || currentFileData) {
-        appendMessage('You', message, currentFileData, currentFileType);
+        appendMessage('user', message, currentFileData, currentFileType);
         fetchBotResponse(message, currentFileData, currentFileType);
         userInput.value = '';
         clearFilePreview();
@@ -98,17 +99,12 @@ chatContainer.addEventListener('drop', (e) => {
 
 function appendMessage(sender, message, fileData = null, fileType = null) {
     const messageElement = document.createElement('div');
-    messageElement.className = `chat-message ${sender.toLowerCase()}`;
+    messageElement.className = `chat-message ${sender}`;
     
-    const senderElement = document.createElement('div');
-    senderElement.className = 'sender';
-    senderElement.textContent = sender;
-    messageElement.appendChild(senderElement);
-
     const contentElement = document.createElement('div');
     contentElement.className = 'content prose';
     
-    if (sender === 'You') {
+    if (sender === 'user') {
         contentElement.textContent = message;
         if (fileData) {
             if (fileType === 'image') {
@@ -123,8 +119,14 @@ function appendMessage(sender, message, fileData = null, fileType = null) {
                 contentElement.appendChild(docInfo);
             }
         }
+    } else if (sender === 'bot') {
+        const generatingElement = document.createElement('div');
+        generatingElement.className = 'generating';
+        generatingElement.innerHTML = 'Generating<span class="dot-1">.</span><span class="dot-2">.</span><span class="dot-3">.</span>';
+        contentElement.appendChild(generatingElement);
     } else {
-        contentElement.innerHTML = marked.parse(message);
+        const sanitizedHtml = DOMPurify.sanitize(marked.parse(message));
+        contentElement.innerHTML = sanitizedHtml;
         contentElement.querySelectorAll('pre code').forEach((block) => {
             const pre = block.parentNode;
             hljs.highlightBlock(block);
@@ -154,7 +156,7 @@ function addCopyButton(pre, block) {
 }
    
 function fetchBotResponse(message, fileData = null, fileType = null) {
-    const botMessageElement = appendMessage('Bot', '');
+    const botMessageElement = appendMessage('bot', '');
     const formData = new FormData();
     formData.append('user_input', message);
     if (fileData) {
@@ -190,8 +192,12 @@ function fetchBotResponse(message, fileData = null, fileType = null) {
                             console.error("Server error:", data.error);
                             botMessageElement.innerHTML = `Error: ${data.error}`;
                         } else if (data.text) {
+                            if (fullMessage === '') {
+                                botMessageElement.innerHTML = ''; // Clear the "Generating..." message
+                            }
                             fullMessage += data.text;
-                            botMessageElement.innerHTML = marked.parse(fullMessage);
+                            const sanitizedHtml = DOMPurify.sanitize(marked.parse(fullMessage));
+                            botMessageElement.innerHTML = sanitizedHtml;
                             botMessageElement.querySelectorAll('pre code').forEach((block) => {
                                 const pre = block.parentNode;
                                 hljs.highlightBlock(block);
@@ -300,7 +306,7 @@ function fetchBotResponse(message, fileData = null, fileType = null) {
         border-radius: 1rem;
     }
 
-    .chat-message.you {
+    .chat-message.user {
         margin-left: auto;
         background-color: #e3f2fd;
     }
@@ -362,6 +368,59 @@ function fetchBotResponse(message, fileData = null, fileType = null) {
         white-space: nowrap;
         font-size: 0.8rem;
         color: #555;
+    }
+
+    .prose ul, .prose ol {
+        list-style-position: inside;
+        padding-left: 1em;
+    }
+
+    .prose ul {
+        list-style-type: disc;
+    }
+
+    .prose ol {
+        list-style-type: decimal;
+    }
+
+    .prose li {
+        margin-bottom: 0.5em;
+    }
+
+    .prose p {
+        margin-bottom: 1em;
+    }
+
+    .prose h1, .prose h2, .prose h3, .prose h4, .prose h5, .prose h6 {
+        margin-top: 1em;
+        margin-bottom: 0.5em;
+    }
+    .generating {
+        display: inline-block;
+    }
+
+    .generating span {
+        opacity: 0;
+        animation: dot-animation 1.4s infinite;
+    }
+
+    .generating .dot-1 {
+        animation-delay: 0s;
+    }
+
+    .generating .dot-2 {
+        animation-delay: 0.2s;
+    }
+
+    .generating .dot-3 {
+        animation-delay: 0.4s;
+    }
+
+    @keyframes dot-animation {
+        0% { opacity: 0; }
+        20% { opacity: 0; }
+        50% { opacity: 1; }
+        100% { opacity: 0; }
     }
 </style>
 {% endblock %}
