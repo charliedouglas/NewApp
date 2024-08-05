@@ -68,6 +68,12 @@ def stream():
     image_data = request.form.get("image_data")
     document_data = request.form.get("document_data")
 
+    # Get the settings from the request
+    temperature = float(request.form.get("temperature", 0.7))
+    top_p = float(request.form.get("top_p", 0.9))
+    top_k = int(request.form.get("top_k", 50))
+    max_tokens = int(request.form.get("max_tokens", 4096))
+
     # logging.debug(f"Received user input: {user_input}")
 
     if not user_input and not image_data and not document_data:
@@ -109,12 +115,11 @@ def stream():
         system_prompt = """You are a helpful chat bot that can analyze images, documents, and answer questions about them. Use Markdown formatting for your responses."""
 
         system_prompts = [{"text": system_prompt}]
-        temperature = 0.7
-        top_p = 0.9
         inference_config = {
             "temperature": temperature,
             "topP": top_p,
-            # "maxTokens": 4096,
+            # "topK": top_k,
+            "maxTokens": max_tokens,
         }
         additional_model_fields = {}
 
