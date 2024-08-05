@@ -352,65 +352,22 @@ body {
     cursor: pointer;
     padding: 0.25rem;
     margin-left: 0.5rem;
-    position: relative;
-    transition: transform 0.2s ease;
 }
 
 .attachment-icon svg, .chat-submit svg {
     width: 20px;
     height: 20px;
     color: #888;
-    transition: color 0.2s ease;
-}
-
-.attachment-icon:hover {
-    transform: scale(1.1);
-}
-
-.attachment-icon:hover svg {
-    color: #555;
-}
-
-.attachment-icon::after {
-    content: attr(title);
-    position: absolute;
-    bottom: 100%;
-    left: 50%;
-    transform: translateX(-50%);
-    background-color: #333;
-    color: white;
-    padding: 5px 10px;
-    border-radius: 4px;
-    font-size: 12px;
-    white-space: nowrap;
-    opacity: 0;
-    visibility: hidden;
-    transition: opacity 0.2s ease, visibility 0.2s ease;
-}
-
-.attachment-icon:hover::after {
-    opacity: 1;
-    visibility: visible;
 }
 
 .chat-submit {
     background-color: #b46d51;
     border-radius: 50%;
     padding: 0.5rem;
-    transition: background-color 0.2s ease, transform 0.2s ease;
 }
 
 .chat-submit svg {
     color: white;
-}
-
-.chat-submit:hover {
-    background-color: #a25a3e;
-    transform: scale(1.1);
-}
-
-.chat-submit:active {
-    transform: scale(0.95);
 }
 
 .input-info {
