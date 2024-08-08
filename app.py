@@ -16,6 +16,18 @@ from io import BytesIO
 import uuid
 import sqlite3
 from datetime import datetime
+from botocore.exceptions import ClientError
+
+# Add these near the top of your file, after other imports
+guardrail_id = "vbyxv56kxvtb"
+guardrail_version = "1"  # or the specific version you want to use
+
+guardrail_config = {
+    "guardrailIdentifier": guardrail_id,
+    "guardrailVersion": guardrail_version,
+    "trace": "enabled",
+    "streamProcessingMode": "sync",
+}
 
 load_dotenv()
 app = Flask(__name__)
@@ -175,6 +187,8 @@ def stream():
     message_content = []
     if user_input:
         message_content.append({"text": user_input})
+        # Add guardrail content
+        message_content.append({"guardContent": {"text": {"text": user_input}}})
 
     if image_data:
         image_bytes = base64.b64decode(image_data)
@@ -219,6 +233,7 @@ def stream():
                 system=system_prompts,
                 inferenceConfig=inference_config,
                 additionalModelRequestFields=additional_model_fields,
+                guardrailConfig=guardrail_config,
             )
             stream = response.get("stream")
             if stream:
