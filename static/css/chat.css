@@ -62,13 +62,6 @@ body {
 }
 
 /* Chat messages area */
-.chat-messages {
-    flex: 1 1 auto;
-    overflow-y: auto;
-    padding: 1rem;
-    background-color: #ffffff;
-}
-
 .chat-message {
     max-width: 70%;
     margin-bottom: 1rem;
@@ -81,7 +74,7 @@ body {
     background-color: #e3f2fd;
 }
 
-.chat-message.bot {
+.chat-message.assistant, .chat-message.bot {
     margin-right: auto;
     background-color: #f0f0f0;
 }
@@ -300,7 +293,21 @@ body {
     }
 }
 
+#conversation-list li.active {
+    background-color: #4a5568;
+}
 
+#conversation-list li {
+    transition: background-color 0.2s ease;
+}
+
+#conversation-list li:hover {
+    background-color: rgba(75, 85, 99, 0.5);
+}
+
+#conversation-list li.bg-gray-700 {
+    background-color: rgba(75, 85, 99, 1);
+}
 
 /* Modal styles */
 .modal {

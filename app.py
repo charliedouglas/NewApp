@@ -54,16 +54,22 @@ def save_message(conversation_id, sender, message):
     conn.close()
 
 
-def get_conversation_history(conversation_id):
+def get_all_conversations():
     conn = sqlite3.connect("chatbot.db")
     c = conn.cursor()
     c.execute(
-        "SELECT timestamp, sender, message FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
-        (conversation_id,),
+        "SELECT DISTINCT conversation_id, MAX(timestamp) as last_update FROM conversations GROUP BY conversation_id ORDER BY last_update DESC"
     )
-    history = c.fetchall()
+    conversations = c.fetchall()
     conn.close()
-    return history
+    return conversations
+
+
+@app.route("/get_all_conversations", methods=["GET"])
+def get_all_conversations_route():
+    conversations = get_all_conversations()
+    app.logger.info(f"Fetched {len(conversations)} conversations")
+    return jsonify(conversations)
 
 
 @app.route("/")
@@ -215,6 +221,21 @@ def stream():
             yield f"data: {json.dumps({'error': str(e)})}\n\n"
 
     return Response(stream_with_context(generate()), content_type="text/event-stream")
+
+
+def get_conversation_history(conversation_id):
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        "SELECT timestamp, sender, message FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
+        (conversation_id,),
+    )
+    history = c.fetchall()
+    conn.close()
+    return [
+        {"timestamp": ts, "sender": sender, "message": msg}
+        for ts, sender, msg in history
+    ]
 
 
 @app.route("/get_history", methods=["GET"])

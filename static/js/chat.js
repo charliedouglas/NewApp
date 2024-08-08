@@ -103,7 +103,7 @@ function setupClosePreview() {
     });
 }
 
-function appendMessage(sender, message, fileData = null, fileType = null, fileName = null) {
+function appendMessage(sender, message, timestamp = null, fileData = null, fileType = null) {
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${sender}`;
     
@@ -133,29 +133,39 @@ function appendMessage(sender, message, fileData = null, fileType = null, fileNa
                 contentElement.appendChild(documentPreview);
             }
         }
-    } else if (sender === 'bot') {
-        const generatingElement = document.createElement('div');
-        generatingElement.className = 'generating';
-        generatingElement.innerHTML = 'Generating<span class="dot-1">.</span><span class="dot-2">.</span><span class="dot-3">.</span>';
-        contentElement.appendChild(generatingElement);
+    } else if (sender === 'assistant' || sender === 'bot') {
+        if (message) {
+            const sanitizedHtml = DOMPurify.sanitize(marked.parse(message));
+            contentElement.innerHTML = sanitizedHtml;
+            contentElement.querySelectorAll('pre code').forEach((block) => {
+                hljs.highlightBlock(block);
+                addCopyButton(block.parentNode, block);
+            });
+        } else {
+            const generatingElement = document.createElement('div');
+            generatingElement.className = 'generating';
+            generatingElement.innerHTML = 'Generating<span class="dot-1">.</span><span class="dot-2">.</span><span class="dot-3">.</span>';
+            contentElement.appendChild(generatingElement);
+        }
     } else if (sender === 'system') {
         contentElement.innerHTML = `<em>${message}</em>`;
         contentElement.style.color = '#888';
-    } else {
-        const sanitizedHtml = DOMPurify.sanitize(marked.parse(message));
-        contentElement.innerHTML = sanitizedHtml;
-        contentElement.querySelectorAll('pre code').forEach((block) => {
-            const pre = block.parentNode;
-            hljs.highlightBlock(block);
-            addCopyButton(pre, block);
-        });
     }
     
     messageElement.appendChild(contentElement);
+    
+    if (timestamp) {
+        const timeElement = document.createElement('div');
+        timeElement.className = 'text-xs text-gray-400 mt-1';
+        timeElement.textContent = new Date(timestamp).toLocaleString();
+        messageElement.appendChild(timeElement);
+    }
+    
     chatContainer.appendChild(messageElement);
     chatContainer.scrollTop = chatContainer.scrollHeight;
     return contentElement;
 }
+    
 
 function addCopyButton(pre, block) {
     const copyButton = document.createElement('button');
@@ -187,13 +197,13 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
     const botMessageElement = appendMessage('bot', '');
     const formData = new FormData();
     
-    formData.append('conversation_id', currentConversationId);
-    
     if (lastSender === 'bot') {
         formData.append('user_input', 'Continue');
     }
     
     formData.append('user_input', message);
+    formData.append('conversation_id', currentConversationId);
+    
     if (fileData) {
         if (fileType === 'image') {
             formData.append('image_data', fileData);
@@ -221,6 +231,7 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
             reader.read().then(({ done, value }) => {
                 if (done) {
                     console.log("Stream complete");
+                    loadConversationHistory(); // Reload the conversation list after message is complete
                     return;
                 }
 
@@ -255,6 +266,7 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
             }).catch(error => {
                 console.error("Error reading stream:", error);
                 botMessageElement.innerHTML = 'Error: Connection lost. Please try again.';
+                loadConversationHistory(); // Reload the conversation list in case of error
             });
         }
 
@@ -262,18 +274,18 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
     }).catch(error => {
         console.error("Fetch error:", error);
         botMessageElement.innerHTML = 'Error: Failed to connect to the server. Please try again.';
+        loadConversationHistory(); // Reload the conversation list in case of error
     });
 }
 
 function startNewChat() {
+    currentConversationId = generateUUID();
     chatContainer.innerHTML = '';
     currentFileData = null;
     currentFileType = null;
     clearFilePreview();
     userInput.value = '';
     userInput.style.height = 'auto';
-    
-    currentConversationId = generateUUID();  // Implement this function to generate a unique ID
     
     fetch('/new_chat', {
         method: 'POST',
@@ -291,6 +303,7 @@ function startNewChat() {
     .then(data => {
         if (data.status === 'success') {
             console.log('New chat started:', data.message);
+            loadConversationHistory(); // Reload the conversation list
         } else {
             console.error('Error starting new chat:', data.message);
         }
@@ -475,11 +488,77 @@ function generateUUID() {
     });
 }
 
-// Call this function when the page loads
+
+function loadConversationHistory() {
+    console.log("Loading conversation history...");
+    fetch('/get_all_conversations')
+        .then(response => response.json())
+        .then(conversations => {
+            console.log("Received conversations:", conversations);
+            const conversationList = document.getElementById('conversation-list');
+            conversationList.innerHTML = '';
+            conversations.forEach(([conversationId, lastUpdate]) => {
+                const li = document.createElement('li');
+                li.className = 'cursor-pointer hover:bg-gray-700 p-2 rounded flex flex-col';
+                
+                // Format the datetime
+                const date = new Date(lastUpdate);
+                const formattedDate = date.toLocaleDateString(undefined, { 
+                    year: 'numeric', 
+                    month: 'short', 
+                    day: 'numeric' 
+                });
+                const formattedTime = date.toLocaleTimeString(undefined, { 
+                    hour: '2-digit', 
+                    minute: '2-digit' 
+                });
+                
+                li.innerHTML = `
+                    <span class="text-sm">Conversation ${conversationId.substr(0, 8)}...</span>
+                    <span class="text-xs text-gray-400">${formattedDate} ${formattedTime}</span>
+                `;
+                li.dataset.conversationId = conversationId;
+                li.onclick = () => loadConversation(conversationId);
+                
+                // Highlight the active conversation
+                if (conversationId === currentConversationId) {
+                    li.classList.add('bg-gray-700');
+                }
+                
+                conversationList.appendChild(li);
+            });
+            console.log("Conversation history loaded and displayed");
+        })
+        .catch(error => console.error('Error loading conversation history:', error));
+}
+
+function loadConversation(conversationId) {
+    currentConversationId = conversationId;
+    fetch(`/get_history?conversation_id=${conversationId}`)
+        .then(response => response.json())
+        .then(history => {
+            chatContainer.innerHTML = '';
+            history.forEach(({timestamp, sender, message, fileData, fileType}) => {
+                appendMessage(sender, message, timestamp, fileData, fileType);
+            });
+            chatContainer.scrollTop = chatContainer.scrollHeight;
+            
+            // Highlight the active conversation in the sidebar
+            document.querySelectorAll('#conversation-list li').forEach(li => {
+                li.classList.remove('bg-gray-700');
+                if (li.dataset.conversationId === conversationId) {
+                    li.classList.add('bg-gray-700');
+                }
+            });
+        })
+        .catch(error => console.error('Error loading conversation:', error));
+}
+
 window.addEventListener('load', () => {
+    console.log("Window loaded");
     adjustLayout();
     currentConversationId = generateUUID();
-    loadChatHistory(currentConversationId);
+    loadConversationHistory();
 });
 
 // Initial setup
