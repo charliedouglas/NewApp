@@ -1,4 +1,11 @@
-from flask import Flask, render_template, request, Response, stream_with_context
+from flask import (
+    Flask,
+    render_template,
+    request,
+    Response,
+    stream_with_context,
+    jsonify,
+)
 import boto3
 import json
 import os
@@ -6,6 +13,7 @@ from dotenv import load_dotenv
 import logging
 import base64
 from io import BytesIO
+import uuid
 
 load_dotenv()
 app = Flask(__name__)
@@ -28,7 +36,26 @@ def chat():
     return render_template("chat.html")
 
 
-logging.basicConfig(level=logging.DEBUG)
+@app.route("/new_chat", methods=["POST"])
+def new_chat():
+    global messages
+    messages = []
+    try:
+        # Reset the Bedrock conversation
+        bedrock_client = boto3.client("bedrock-agent-runtime")
+
+        response = bedrock_client.converse_stream(
+            memoryId=uuid.uuid4().hex, inputText="Hello"
+        )
+
+        return jsonify(
+            {"status": "success", "message": "Chat history cleared successfully"}
+        )
+    except Exception as e:
+        return jsonify({"status": "error", "message": str(e)}), 500
+
+
+# logging.basicConfig(level=logging.DEBUG)
 
 messages = []
 
@@ -40,7 +67,17 @@ def stream():
     image_data = request.form.get("image_data")
     document_data = request.form.get("document_data")
 
-    logging.debug(f"Received user input: {user_input}")
+    # Get the settings from the request
+    temperature = float(request.form.get("temperature", 0.7))
+    top_p = float(request.form.get("top_p", 0.9))
+    top_k = int(request.form.get("top_k", 50))
+    max_tokens = int(request.form.get("max_tokens", 4096))
+    system_prompt = request.form.get(
+        "system_prompt",
+        "You are a helpful chat bot that can analyze images, documents, and answer questions about them.",
+    )
+
+    # logging.debug(f"Received user input: {user_input}")
 
     if not user_input and not image_data and not document_data:
         return (
@@ -51,20 +88,17 @@ def stream():
             400,
         )
 
-    # Prepare the message content
     message_content = []
     if user_input:
         message_content.append({"text": user_input})
 
     if image_data:
-        # Decode the base64 image data
         image_bytes = base64.b64decode(image_data)
         message_content.append(
             {"image": {"format": "png", "source": {"bytes": image_bytes}}}
         )
 
     if document_data:
-        # Decode the base64 document data
         document_bytes = base64.b64decode(document_data)
         message_content.append(
             {
@@ -76,23 +110,23 @@ def stream():
             }
         )
 
-    # Add the user message to the conversation
     messages.append({"role": "user", "content": message_content})
 
     def generate():
         global messages
         model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
-        system_prompt = """You are a helpful chat bot that can analyze images, documents, and answer questions about them."""
+        # system_prompt = """You are a helpful chat bot that can analyze images, documents, and answer questions about them. Use Markdown formatting for your responses."""
 
         system_prompts = [{"text": system_prompt}]
-        temperature = 0.7
-        top_p = 0.9
         inference_config = {
             "temperature": temperature,
             "topP": top_p,
-            "maxTokens": 1000,
+            # "topK": top_k,
+            "maxTokens": max_tokens,
         }
         additional_model_fields = {}
+
+        # generate a unique seession id using UUID
 
         try:
             response = bedrock.converse_stream(
@@ -114,7 +148,7 @@ def stream():
                         full_content += delta
                         yield f"data: {json.dumps({'type': 'content_block_delta', 'text': delta})}\n\n"
                     if "messageStop" in event:
-                        if full_content.strip():  # Only add non-empty content
+                        if full_content.strip():
                             assistant_message["content"] = [
                                 {"text": full_content.strip()}
                             ]
@@ -127,7 +161,6 @@ def stream():
                         if "metrics" in metadata:
                             yield f"data: {json.dumps({'type': 'latency', 'latencyMs': metadata['metrics']['latencyMs']})}\n\n"
 
-            # Trim the message history to keep only the last 10 messages
             messages = messages[-10:]
 
         except Exception as e:
