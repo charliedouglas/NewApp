@@ -26,8 +26,9 @@ This is a Flask application that allows users to chat with the Anthropic Claude 
 
 4. Install the required dependencies: pip install -r requirements.txt
 
-5. Set the following environment variables with your AWS credentials and desired region: 
-export AWS_ACCESS_KEY_ID=your-access-key-id export AWS_SECRET_ACCESS_KEY=your-secret-access-key export AWS_REGION=your-aws-region
+5. Set the environment variables with your AWS credentials and desired region in env.sample
+
+6. Rename env.sample to '.env.
 
 
 ## Usage
