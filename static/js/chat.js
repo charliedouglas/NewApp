@@ -14,6 +14,7 @@ const span = document.getElementsByClassName("close")[0];
 // Global variables
 let currentFileData = null;
 let currentFileType = null;
+let currentConversationId = null;
 
 // Functions
 function adjustLayout() {
@@ -186,6 +187,8 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
     const botMessageElement = appendMessage('bot', '');
     const formData = new FormData();
     
+    formData.append('conversation_id', currentConversationId);
+    
     if (lastSender === 'bot') {
         formData.append('user_input', 'Continue');
     }
@@ -270,11 +273,14 @@ function startNewChat() {
     userInput.value = '';
     userInput.style.height = 'auto';
     
+    currentConversationId = generateUUID();  // Implement this function to generate a unique ID
+    
     fetch('/new_chat', {
         method: 'POST',
         headers: {
             'Content-Type': 'application/json',
         },
+        body: JSON.stringify({conversation_id: currentConversationId})
     })
     .then(response => {
         if (!response.ok) {
@@ -284,19 +290,32 @@ function startNewChat() {
     })
     .then(data => {
         if (data.status === 'success') {
-            console.log('Chat history cleared on server:', data.message);
+            console.log('New chat started:', data.message);
         } else {
-            console.error('Error clearing chat history:', data.message);
+            console.error('Error starting new chat:', data.message);
         }
     })
     .catch(error => {
-        console.error('Error clearing chat history:', error);
+        console.error('Error starting new chat:', error);
     });
 
     if (window.innerWidth < 768) {
         sidebar.classList.add('-translate-x-full');
         adjustLayout();
     }
+}
+
+// Add this function to load chat history
+function loadChatHistory(conversationId) {
+    fetch(`/get_history?conversation_id=${conversationId}`)
+        .then(response => response.json())
+        .then(history => {
+            chatContainer.innerHTML = '';
+            history.forEach(([timestamp, sender, message]) => {
+                appendMessage(sender, message);
+            });
+        })
+        .catch(error => console.error('Error loading chat history:', error));
 }
 
 function getSettings() {
@@ -448,6 +467,20 @@ function handlePaste(e) {
         //userInput.value = `Large content attached (${fileName})`;
     }
 }
+
+function generateUUID() {
+    return 'xxxxxxxx-xxxx-4xxx-yxxx-xxxxxxxxxxxx'.replace(/[xy]/g, function(c) {
+        var r = Math.random() * 16 | 0, v = c == 'x' ? r : (r & 0x3 | 0x8);
+        return v.toString(16);
+    });
+}
+
+// Call this function when the page loads
+window.addEventListener('load', () => {
+    adjustLayout();
+    currentConversationId = generateUUID();
+    loadChatHistory(currentConversationId);
+});
 
 // Initial setup
 setupClosePreview();

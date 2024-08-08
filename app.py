@@ -14,6 +14,8 @@ import logging
 import base64
 from io import BytesIO
 import uuid
+import sqlite3
+from datetime import datetime
 
 load_dotenv()
 app = Flask(__name__)
@@ -24,6 +26,44 @@ bedrock = boto3.client(
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     region_name=os.getenv("AWS_REGION"),
 )
+
+
+def init_db():
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS conversations
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  conversation_id TEXT,
+                  timestamp DATETIME,
+                  sender TEXT,
+                  message TEXT)"""
+    )
+    conn.commit()
+    conn.close()
+
+
+def save_message(conversation_id, sender, message):
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO conversations (conversation_id, timestamp, sender, message) VALUES (?, ?, ?, ?)",
+        (conversation_id, datetime.now(), sender, message),
+    )
+    conn.commit()
+    conn.close()
+
+
+def get_conversation_history(conversation_id):
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        "SELECT timestamp, sender, message FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
+        (conversation_id,),
+    )
+    history = c.fetchall()
+    conn.close()
+    return history
 
 
 @app.route("/")
@@ -67,6 +107,7 @@ def stream():
     image_data = request.form.get("image_data")
     document_data = request.form.get("document_data")
     document_name = request.form.get("document_name")
+    conversation_id = request.form.get("conversation_id")
 
     # Get the settings from the request
     temperature = float(request.form.get("temperature", 0.7))
@@ -111,6 +152,9 @@ def stream():
 
     messages.append({"role": "user", "content": message_content})
 
+    # Save user message
+    save_message(conversation_id, "user", user_input)
+
     def generate():
         global messages
         model_id = "anthropic.claude-3-sonnet-20240229-v1:0"
@@ -152,6 +196,10 @@ def stream():
                                 {"text": full_content.strip()}
                             ]
                             messages.append(assistant_message)
+                            # Save assistant message
+                            save_message(
+                                conversation_id, "assistant", full_content.strip()
+                            )
                         yield f"data: {json.dumps({'type': 'message_stop', 'reason': event['messageStop']['stopReason']})}\n\n"
                     if "metadata" in event:
                         metadata = event["metadata"]
@@ -169,5 +217,13 @@ def stream():
     return Response(stream_with_context(generate()), content_type="text/event-stream")
 
 
+@app.route("/get_history", methods=["GET"])
+def get_history():
+    conversation_id = request.args.get("conversation_id")
+    history = get_conversation_history(conversation_id)
+    return jsonify(history)
+
+
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True)
