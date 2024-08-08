@@ -60,8 +60,25 @@ function displayFilePreview(fileName, fileType) {
     const previewContent = previewElement.querySelector('.preview-content');
     if (fileType === 'image') {
         previewContent.innerHTML = `<img src="data:image/jpeg;base64,${currentFileData}" alt="Uploaded image" class="preview-image">`;
-    } else {
-        previewContent.innerHTML = `<span class="preview-document">${fileName}</span>`;
+    } else if (fileType === 'document') {
+        const content = atob(currentFileData);
+        const truncatedContent = content.length > 50 ? content.substring(0, 50) + '...' : content;
+        previewContent.innerHTML = `
+            <div class="flex items-center bg-gray-300 rounded-lg p-2">
+                <div class="flex-shrink-0 w-15 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                    <span class="text-xs font-semibold text-gray-600">PASTED</span>
+                </div>
+                <div class="flex-grow">
+                    <!-- <div class="text-sm font-medium text-gray-900">${fileName}</div> -->
+                    <div class="text-xs text-gray-500">${truncatedContent}</div>
+                </div>
+                <button class="flex-shrink-0 ml-2 text-gray-400 hover:text-gray-600" onclick="clearFilePreview()">
+                    <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            </div>
+        `;
     }
     previewElement.style.display = 'flex';
 }
@@ -85,7 +102,7 @@ function setupClosePreview() {
     });
 }
 
-function appendMessage(sender, message, fileData = null, fileType = null) {
+function appendMessage(sender, message, fileData = null, fileType = null, fileName = null) {
     const messageElement = document.createElement('div');
     messageElement.className = `chat-message ${sender}`;
     
@@ -98,12 +115,12 @@ function appendMessage(sender, message, fileData = null, fileType = null) {
             if (fileType === 'image') {
                 const img = document.createElement('img');
                 img.src = `data:image/jpeg;base64,${fileData}`;
-                img.style.maxWidth = '200px';
-                img.style.maxHeight = '200px';
+                img.style.maxWidth = '400px';
+                img.style.maxHeight = '400px';
                 contentElement.appendChild(img);
             } else {
                 const docInfo = document.createElement('p');
-                docInfo.textContent = 'Document attached';
+                docInfo.textContent = fileName || 'Document attached';
                 contentElement.appendChild(docInfo);
             }
         }
@@ -157,15 +174,23 @@ function addCopyButton(pre, block) {
     pre.insertBefore(topBar, block);
 }
 
-function fetchBotResponse(message, fileData = null, fileType = null) {
+function fetchBotResponse(message, fileData = null, fileType = null, fileName = null) {
     const botMessageElement = appendMessage('bot', '');
     const formData = new FormData();
+    
+    if (lastSender === 'bot') {
+        formData.append('user_input', 'Continue');
+    }
+    
     formData.append('user_input', message);
     if (fileData) {
         if (fileType === 'image') {
             formData.append('image_data', fileData);
         } else {
             formData.append('document_data', fileData);
+            if (fileName) {
+                formData.append('document_name', fileName);
+            }
         }
     }
 
@@ -288,8 +313,17 @@ chatForm.addEventListener('submit', function(e) {
     e.preventDefault();
     const message = userInput.value.trim();
     if (message || currentFileData) {
-        appendMessage('user', message, currentFileData, currentFileType);
-        fetchBotResponse(message, currentFileData, currentFileType);
+        let attachmentFileName = null;
+        if (!currentFileData) {
+            attachmentFileName = handleLargeContent(message);
+        }
+        if (attachmentFileName) {
+            appendMessage('user', 'Large content attached', currentFileData, currentFileType, attachmentFileName);
+        } else {
+            appendMessage('user', message, currentFileData, currentFileType);
+        }
+        lastSender = 'user';
+        fetchBotResponse(message, currentFileData, currentFileType, attachmentFileName);
         userInput.value = '';
         clearFilePreview();
         userInput.style.height = 'auto';
@@ -380,6 +414,30 @@ document.getElementById('save-settings').onclick = function() {
         .catch(error => {
             console.error('Error clearing chat history:', error);
         });
+    }
+}
+
+let documentCounter = 0;
+
+function handleLargeContent(content) {
+    if (content.length >= 1000) {
+        documentCounter++;
+        const timestamp = Date.now();
+        const fileName = `large_content_${timestamp}_${documentCounter}.txt`;
+        currentFileData = btoa(content);
+        currentFileType = 'document';
+        displayFilePreview(fileName, 'document');
+        return fileName;
+    }
+    return false;
+}
+
+function handlePaste(e) {
+    const pastedText = e.clipboardData.getData('text');
+    const fileName = handleLargeContent(pastedText);
+    if (fileName) {
+        e.preventDefault();
+        //userInput.value = `Large content attached (${fileName})`;
     }
 }
 

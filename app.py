@@ -66,6 +66,7 @@ def stream():
     user_input = request.form.get("user_input")
     image_data = request.form.get("image_data")
     document_data = request.form.get("document_data")
+    document_name = request.form.get("document_name")
 
     # Get the settings from the request
     temperature = float(request.form.get("temperature", 0.7))
@@ -76,8 +77,6 @@ def stream():
         "system_prompt",
         "You are a helpful chat bot that can analyze images, documents, and answer questions about them.",
     )
-
-    # logging.debug(f"Received user input: {user_input}")
 
     if not user_input and not image_data and not document_data:
         return (
@@ -103,7 +102,7 @@ def stream():
         message_content.append(
             {
                 "document": {
-                    "name": "UserDocument",
+                    "name": document_name or f"document_{len(messages)}",
                     "format": "txt",
                     "source": {"bytes": document_bytes},
                 }
