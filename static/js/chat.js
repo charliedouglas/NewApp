@@ -118,10 +118,18 @@ function appendMessage(sender, message, fileData = null, fileType = null, fileNa
                 img.style.maxWidth = '400px';
                 img.style.maxHeight = '400px';
                 contentElement.appendChild(img);
-            } else {
-                const docInfo = document.createElement('p');
-                docInfo.textContent = fileName || 'Document attached';
-                contentElement.appendChild(docInfo);
+            } else if (fileType === 'document') {
+                const documentPreview = document.createElement('div');
+                documentPreview.className = 'flex items-center bg-gray-300 rounded-lg p-2';
+                documentPreview.innerHTML = `
+                    <div class="flex-shrink-0 w-15 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                        <span class="text-xs font-semibold text-gray-600">DOC</span>
+                    </div>
+                    <div class="flex-grow">
+                        <div class="text-xs text-gray-500">${atob(fileData).substring(0, 50)}${atob(fileData).length > 50 ? '...' : ''}</div>
+                    </div>
+                `;
+                contentElement.appendChild(documentPreview);
             }
         }
     } else if (sender === 'bot') {
