@@ -37,39 +37,72 @@ def init_db():
                   conversation_id TEXT,
                   timestamp DATETIME,
                   sender TEXT,
-                  message TEXT)"""
+                  message TEXT,
+                  file_data TEXT,
+                  file_type TEXT)"""
     )
     conn.commit()
     conn.close()
 
 
-def save_message(conversation_id, sender, message):
+def save_message(conversation_id, sender, message, file_data=None, file_type=None):
     conn = sqlite3.connect("chatbot.db")
     c = conn.cursor()
     c.execute(
-        "INSERT INTO conversations (conversation_id, timestamp, sender, message) VALUES (?, ?, ?, ?)",
-        (conversation_id, datetime.now(), sender, message),
+        "INSERT INTO conversations (conversation_id, timestamp, sender, message, file_data, file_type) VALUES (?, ?, ?, ?, ?, ?)",
+        (conversation_id, datetime.now(), sender, message, file_data, file_type),
     )
     conn.commit()
     conn.close()
-
-
-def get_all_conversations():
-    conn = sqlite3.connect("chatbot.db")
-    c = conn.cursor()
-    c.execute(
-        "SELECT DISTINCT conversation_id, MAX(timestamp) as last_update FROM conversations GROUP BY conversation_id ORDER BY last_update DESC"
-    )
-    conversations = c.fetchall()
-    conn.close()
-    return conversations
 
 
 @app.route("/get_all_conversations", methods=["GET"])
 def get_all_conversations_route():
-    conversations = get_all_conversations()
-    app.logger.info(f"Fetched {len(conversations)} conversations")
-    return jsonify(conversations)
+    page = int(request.args.get("page", 1))
+    per_page = 10
+    offset = (page - 1) * per_page
+
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+
+    # Get total count of conversations
+    c.execute("SELECT COUNT(DISTINCT conversation_id) FROM conversations")
+    total_conversations = c.fetchone()[0]
+
+    # Get paginated conversations
+    c.execute(
+        """
+        SELECT conversation_id, MAX(timestamp) as last_update 
+        FROM conversations 
+        GROUP BY conversation_id 
+        ORDER BY last_update DESC
+        LIMIT ? OFFSET ?
+    """,
+        (per_page, offset),
+    )
+
+    conversations = c.fetchall()
+    conn.close()
+
+    formatted_conversations = [
+        (
+            conv_id,
+            (
+                last_update.isoformat()
+                if isinstance(last_update, datetime)
+                else last_update
+            ),
+        )
+        for conv_id, last_update in conversations
+    ]
+
+    return jsonify(
+        {
+            "conversations": formatted_conversations,
+            "total_pages": (total_conversations + per_page - 1) // per_page,
+            "current_page": page,
+        }
+    )
 
 
 @app.route("/")
@@ -115,6 +148,11 @@ def stream():
     document_name = request.form.get("document_name")
     conversation_id = request.form.get("conversation_id")
 
+    file_data = image_data or document_data
+    file_type = "image" if image_data else "document" if document_data else None
+
+    save_message(conversation_id, "user", user_input, file_data, file_type)
+
     # Get the settings from the request
     temperature = float(request.form.get("temperature", 0.7))
     top_p = float(request.form.get("top_p", 0.9))
@@ -157,9 +195,6 @@ def stream():
         )
 
     messages.append({"role": "user", "content": message_content})
-
-    # Save user message
-    save_message(conversation_id, "user", user_input)
 
     def generate():
         global messages
@@ -227,14 +262,20 @@ def get_conversation_history(conversation_id):
     conn = sqlite3.connect("chatbot.db")
     c = conn.cursor()
     c.execute(
-        "SELECT timestamp, sender, message FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
+        "SELECT timestamp, sender, message, file_data, file_type FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
         (conversation_id,),
     )
     history = c.fetchall()
     conn.close()
     return [
-        {"timestamp": ts, "sender": sender, "message": msg}
-        for ts, sender, msg in history
+        {
+            "timestamp": ts,
+            "sender": sender,
+            "message": msg,
+            "fileData": fd,
+            "fileType": ft,
+        }
+        for ts, sender, msg, fd, ft in history
     ]
 
 

@@ -113,39 +113,18 @@ function appendMessage(sender, message, timestamp = null, fileData = null, fileT
     if (sender === 'user') {
         contentElement.textContent = message;
         if (fileData) {
-            if (fileType === 'image') {
-                const img = document.createElement('img');
-                img.src = `data:image/jpeg;base64,${fileData}`;
-                img.style.maxWidth = '400px';
-                img.style.maxHeight = '400px';
-                contentElement.appendChild(img);
-            } else if (fileType === 'document') {
-                const documentPreview = document.createElement('div');
-                documentPreview.className = 'flex items-center bg-gray-300 rounded-lg p-2';
-                documentPreview.innerHTML = `
-                    <div class="flex-shrink-0 w-15 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
-                        <span class="text-xs font-semibold text-gray-600">DOC</span>
-                    </div>
-                    <div class="flex-grow">
-                        <div class="text-xs text-gray-500">${atob(fileData).substring(0, 50)}${atob(fileData).length > 50 ? '...' : ''}</div>
-                    </div>
-                `;
-                contentElement.appendChild(documentPreview);
-            }
+            appendAttachment(contentElement, fileData, fileType);
         }
     } else if (sender === 'assistant' || sender === 'bot') {
-        if (message) {
+        if (message === 'Generating...') {
+            contentElement.innerHTML = `Generating<span class="generating-dots"><span></span><span></span><span></span></span>`;
+        } else if (message) {
             const sanitizedHtml = DOMPurify.sanitize(marked.parse(message));
             contentElement.innerHTML = sanitizedHtml;
             contentElement.querySelectorAll('pre code').forEach((block) => {
                 hljs.highlightBlock(block);
                 addCopyButton(block.parentNode, block);
             });
-        } else {
-            const generatingElement = document.createElement('div');
-            generatingElement.className = 'generating';
-            generatingElement.innerHTML = 'Generating<span class="dot-1">.</span><span class="dot-2">.</span><span class="dot-3">.</span>';
-            contentElement.appendChild(generatingElement);
         }
     } else if (sender === 'system') {
         contentElement.innerHTML = `<em>${message}</em>`;
@@ -165,7 +144,28 @@ function appendMessage(sender, message, timestamp = null, fileData = null, fileT
     chatContainer.scrollTop = chatContainer.scrollHeight;
     return contentElement;
 }
-    
+
+function appendAttachment(contentElement, fileData, fileType) {
+    if (fileType === 'image') {
+        const img = document.createElement('img');
+        img.src = `data:image/jpeg;base64,${fileData}`;
+        img.style.maxWidth = '400px';
+        img.style.maxHeight = '400px';
+        contentElement.appendChild(img);
+    } else if (fileType === 'document') {
+        const documentPreview = document.createElement('div');
+        documentPreview.className = 'flex items-center bg-gray-300 rounded-lg p-2 mt-2';
+        documentPreview.innerHTML = `
+            <div class="flex-shrink-0 w-15 h-10 bg-gray-100 rounded-lg flex items-center justify-center mr-3">
+                <span class="text-xs font-semibold text-gray-600">DOC</span>
+            </div>
+            <div class="flex-grow">
+                <div class="text-xs text-gray-500">${atob(fileData).substring(0, 50)}${atob(fileData).length > 50 ? '...' : ''}</div>
+            </div>
+        `;
+        contentElement.appendChild(documentPreview);
+    }
+}
 
 function addCopyButton(pre, block) {
     const copyButton = document.createElement('button');
@@ -194,12 +194,8 @@ function addCopyButton(pre, block) {
 }
 
 function fetchBotResponse(message, fileData = null, fileType = null, fileName = null) {
-    const botMessageElement = appendMessage('bot', '');
+    const botMessageElement = appendMessage('bot', 'Generating...'); // Add this line
     const formData = new FormData();
-    
-    if (lastSender === 'bot') {
-        formData.append('user_input', 'Continue');
-    }
     
     formData.append('user_input', message);
     formData.append('conversation_id', currentConversationId);
@@ -231,7 +227,6 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
             reader.read().then(({ done, value }) => {
                 if (done) {
                     console.log("Stream complete");
-                    loadConversationHistory(); // Reload the conversation list after message is complete
                     return;
                 }
 
@@ -240,22 +235,18 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
                 lines.forEach(line => {
                     if (line.startsWith('data: ')) {
                         const data = JSON.parse(line.slice(6));
-                        if (data.type === 'message_delta') {
-                            console.log("Message complete");
+                        if (data.type === 'message_start') {
+                            botMessageElement.innerHTML = ''; // Clear the 'Generating...' message
                         } else if (data.error) {
                             console.error("Server error:", data.error);
                             botMessageElement.innerHTML = `Error: ${data.error}`;
                         } else if (data.text) {
-                            if (fullMessage === '') {
-                                botMessageElement.innerHTML = '';
-                            }
                             fullMessage += data.text;
                             const sanitizedHtml = DOMPurify.sanitize(marked.parse(fullMessage));
                             botMessageElement.innerHTML = sanitizedHtml;
                             botMessageElement.querySelectorAll('pre code').forEach((block) => {
-                                const pre = block.parentNode;
                                 hljs.highlightBlock(block);
-                                addCopyButton(pre, block);
+                                addCopyButton(block.parentNode, block);
                             });
                             chatContainer.scrollTop = chatContainer.scrollHeight;
                         }
@@ -266,7 +257,6 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
             }).catch(error => {
                 console.error("Error reading stream:", error);
                 botMessageElement.innerHTML = 'Error: Connection lost. Please try again.';
-                loadConversationHistory(); // Reload the conversation list in case of error
             });
         }
 
@@ -274,7 +264,6 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
     }).catch(error => {
         console.error("Fetch error:", error);
         botMessageElement.innerHTML = 'Error: Failed to connect to the server. Please try again.';
-        loadConversationHistory(); // Reload the conversation list in case of error
     });
 }
 
@@ -357,12 +346,7 @@ chatForm.addEventListener('submit', function(e) {
         if (!currentFileData) {
             attachmentFileName = handleLargeContent(message);
         }
-        if (attachmentFileName) {
-            appendMessage('user', 'Large content attached', currentFileData, currentFileType, attachmentFileName);
-        } else {
-            appendMessage('user', message, currentFileData, currentFileType);
-        }
-        lastSender = 'user';
+        appendMessage('user', message, null, currentFileData, currentFileType);
         fetchBotResponse(message, currentFileData, currentFileType, attachmentFileName);
         userInput.value = '';
         clearFilePreview();
@@ -489,19 +473,22 @@ function generateUUID() {
 }
 
 
-function loadConversationHistory() {
+let currentPage = 1;
+let totalPages = 1;
+
+function loadConversationHistory(page = 1) {
     console.log("Loading conversation history...");
-    fetch('/get_all_conversations')
+    fetch(`/get_all_conversations?page=${page}`)
         .then(response => response.json())
-        .then(conversations => {
-            console.log("Received conversations:", conversations);
+        .then(data => {
+            console.log("Received conversations:", data);
             const conversationList = document.getElementById('conversation-list');
             conversationList.innerHTML = '';
-            conversations.forEach(([conversationId, lastUpdate]) => {
+            
+            data.conversations.forEach(([conversationId, lastUpdate]) => {
                 const li = document.createElement('li');
                 li.className = 'cursor-pointer hover:bg-gray-700 p-2 rounded flex flex-col';
                 
-                // Format the datetime
                 const date = new Date(lastUpdate);
                 const formattedDate = date.toLocaleDateString(undefined, { 
                     year: 'numeric', 
@@ -520,17 +507,39 @@ function loadConversationHistory() {
                 li.dataset.conversationId = conversationId;
                 li.onclick = () => loadConversation(conversationId);
                 
-                // Highlight the active conversation
                 if (conversationId === currentConversationId) {
                     li.classList.add('bg-gray-700');
                 }
                 
                 conversationList.appendChild(li);
             });
+            
+            currentPage = data.current_page;
+            totalPages = data.total_pages;
+            updatePaginationControls();
+            
             console.log("Conversation history loaded and displayed");
         })
         .catch(error => console.error('Error loading conversation history:', error));
 }
+
+function updatePaginationControls() {
+    const paginationControls = document.getElementById('pagination-controls');
+    paginationControls.innerHTML = `
+        <button id="prev-page" class="px-2 py-1 bg-gray-700 rounded" ${currentPage === 1 ? 'disabled' : ''}>Previous</button>
+        <span class="px-2">${currentPage} / ${totalPages}</span>
+        <button id="next-page" class="px-2 py-1 bg-gray-700 rounded" ${currentPage === totalPages ? 'disabled' : ''}>Next</button>
+    `;
+    
+    document.getElementById('prev-page').onclick = () => {
+        if (currentPage > 1) loadConversationHistory(currentPage - 1);
+    };
+    
+    document.getElementById('next-page').onclick = () => {
+        if (currentPage < totalPages) loadConversationHistory(currentPage + 1);
+    };
+}
+
 
 function loadConversation(conversationId) {
     currentConversationId = conversationId;

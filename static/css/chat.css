@@ -88,6 +88,19 @@ body {
     border-radius: 0.5rem;
 }
 
+#pagination-controls button {
+    transition: background-color 0.2s ease;
+}
+
+#pagination-controls button:hover:not(:disabled) {
+    background-color: rgba(75, 85, 99, 0.7);
+}
+
+#pagination-controls button:disabled {
+    opacity: 0.5;
+    cursor: not-allowed;
+}
+
 /* Chat input area */
 .chat-input-container {
     flex: 0 0 auto;
@@ -308,6 +321,24 @@ body {
 #conversation-list li.bg-gray-700 {
     background-color: rgba(75, 85, 99, 1);
 }
+
+@keyframes bounce {
+    0%, 80%, 100% { transform: translateY(0); }
+    40% { transform: translateY(-5px); }
+}
+
+.generating-dots span {
+    display: inline-block;
+    width: 5px;
+    height: 5px;
+    background-color: #333;
+    border-radius: 50%;
+    margin: 0 2px;
+    animation: bounce 1.4s infinite ease-in-out both;
+}
+
+.generating-dots span:nth-child(1) { animation-delay: -0.32s; }
+.generating-dots span:nth-child(2) { animation-delay: -0.16s; }
 
 /* Modal styles */
 .modal {
