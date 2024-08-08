@@ -129,7 +129,11 @@ body {
     font-size: 1rem;
     background: transparent;
     min-width: 0;
+    max-height: 5em; /* Set the maximum height to 5 lines */
+    overflow-y: auto; /* Add vertical scrollbar if content exceeds 5 lines */
+    line-height: 1.2; /* Adjust line-height as needed */
 }
+
 
 .input-actions {
     display: flex;
