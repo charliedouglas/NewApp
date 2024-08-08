@@ -286,6 +286,32 @@ def get_history():
     return jsonify(history)
 
 
+@app.route("/delete_conversation", methods=["DELETE"])
+def delete_conversation():
+    conversation_id = request.args.get("conversation_id")
+    if not conversation_id:
+        return (
+            jsonify({"status": "error", "message": "No conversation ID provided"}),
+            400,
+        )
+
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    try:
+        c.execute(
+            "DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,)
+        )
+        conn.commit()
+        return jsonify(
+            {"status": "success", "message": "Conversation deleted successfully"}
+        )
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
     init_db()
     app.run(debug=True)

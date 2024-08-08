@@ -487,7 +487,7 @@ function loadConversationHistory(page = 1) {
             
             data.conversations.forEach(([conversationId, lastUpdate]) => {
                 const li = document.createElement('li');
-                li.className = 'cursor-pointer hover:bg-gray-700 p-2 rounded flex flex-col';
+                li.className = 'cursor-pointer hover:bg-gray-700 p-2 rounded flex justify-between items-center relative';
                 
                 const date = new Date(lastUpdate);
                 const formattedDate = date.toLocaleDateString(undefined, { 
@@ -501,18 +501,44 @@ function loadConversationHistory(page = 1) {
                 });
                 
                 li.innerHTML = `
+                <div class="flex flex-col">
                     <span class="text-sm">Conversation ${conversationId.substr(0, 8)}...</span>
                     <span class="text-xs text-gray-400">${formattedDate} ${formattedTime}</span>
-                `;
-                li.dataset.conversationId = conversationId;
-                li.onclick = () => loadConversation(conversationId);
+                </div>
+                <button class="delete-conversation text-red-500 hover:text-red-700 absolute right-2 top-1/2 transform -translate-y-1/2 opacity-0 transition-opacity duration-200">
+                    <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                        <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"></path>
+                    </svg>
+                </button>
+            `;
+            li.dataset.conversationId = conversationId;
                 
-                if (conversationId === currentConversationId) {
-                    li.classList.add('bg-gray-700');
-                }
-                
-                conversationList.appendChild(li);
+            // Add event listeners here
+            li.addEventListener('mouseenter', () => {
+                li.querySelector('.delete-conversation').style.opacity = '1';
             });
+
+            li.addEventListener('mouseleave', () => {
+                li.querySelector('.delete-conversation').style.opacity = '0';
+            });
+
+            li.querySelector('.delete-conversation').onclick = (e) => {
+                e.stopPropagation();
+                deleteConversation(conversationId);
+            };
+
+            li.onclick = (e) => {
+                if (!e.target.closest('.delete-conversation')) {
+                    loadConversation(conversationId);
+                }
+            };
+            
+            if (conversationId === currentConversationId) {
+                li.classList.add('bg-gray-700');
+            }
+            
+            conversationList.appendChild(li);
+        });
             
             currentPage = data.current_page;
             totalPages = data.total_pages;
@@ -521,6 +547,25 @@ function loadConversationHistory(page = 1) {
             console.log("Conversation history loaded and displayed");
         })
         .catch(error => console.error('Error loading conversation history:', error));
+}
+
+function deleteConversation(conversationId) {
+    if (confirm('Are you sure you want to delete this conversation?')) {
+        fetch(`/delete_conversation?conversation_id=${conversationId}`, { method: 'DELETE' })
+            .then(response => response.json())
+            .then(data => {
+                if (data.status === 'success') {
+                    loadConversationHistory(currentPage);
+                    if (currentConversationId === conversationId) {
+                        chatContainer.innerHTML = '';
+                        currentConversationId = null;
+                    }
+                } else {
+                    console.error('Error deleting conversation:', data.message);
+                }
+            })
+            .catch(error => console.error('Error deleting conversation:', error));
+    }
 }
 
 function updatePaginationControls() {
