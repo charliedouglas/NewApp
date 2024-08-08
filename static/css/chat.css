@@ -228,6 +228,11 @@ body {
     background-color: #f0f0f0;
     border-radius: 4px;
     padding: 0.5rem;
+    width: 100%;
+}
+
+.file-preview .preview-content {
+    width: 100%;
 }
 
 .preview-content {

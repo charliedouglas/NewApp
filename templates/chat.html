@@ -31,7 +31,7 @@
                 </div>
                 <form id="chat-form" class="chat-form">
                     <div class="input-wrapper">
-                        <textarea id="user-input" class="chat-input" placeholder="Type a message..." rows="1"></textarea>
+                        <textarea id="user-input" class="chat-input" placeholder="Type a message..." rows="1" onpaste="handlePaste(event)"></textarea>
                         <div class="input-actions">
                             <label for="file-upload" class="attachment-icon" title="Attach file: Image, TXT, PDF, DOC, DOCX">
                                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
