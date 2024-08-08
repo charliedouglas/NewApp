@@ -1,2 +1,4 @@
 .env
 .venv
+test.ipynb
+tests-bedrock.py
