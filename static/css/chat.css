@@ -477,4 +477,33 @@ body {
     50% { opacity: 1; }
     100% { opacity: 0; }
 }
+
+.info-icon {
+    display: inline-block;
+    width: 16px;
+    height: 16px;
+    text-align: center;
+    line-height: 16px;
+    border-radius: 50%;
+    background-color: #a7a7a7;
+    color: white;
+    font-size: 12px;
+    cursor: help;
+}
+
+.info-icon:hover::after {
+    content: attr(title);
+    position: absolute;
+    background: #333;
+    color: #fff;
+    padding: 5px 10px;
+    border-radius: 3px;
+    font-size: 12px;
+    white-space: nowrap;
+    z-index: 1;
+    top: 100%;
+    left: 50%;
+    transform: translateX(-50%);
+}
+
 </style>

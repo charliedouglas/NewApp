@@ -60,34 +60,49 @@
                 </form>
             </footer>
         </div>
-        <!-- Settings Modal -->
-        <div id="settings-modal" class="modal hidden">
-            <div class="modal-content">
-                <span class="close">&times;</span>
-                <h2>Settings</h2>
-                <div class="setting">
-                    <label for="temperature">Temperature: <span id="temperature-value">0.7</span></label>
-                    <input type="range" id="temperature" min="0" max="1" step="0.01" value="0.7">
-                </div>
-                <div class="setting">
-                    <label for="top-p">Top P: <span id="top-p-value">0.9</span></label>
-                    <input type="range" id="top-p" min="0" max="1" step="0.01" value="0.9">
-                </div>
-                <div class="setting">
-                    <label for="top-k">Top K: <span id="top-k-value">50</span></label>
-                    <input type="range" id="top-k" min="0" max="100" step="1" value="50">
-                </div>
-                <div class="setting">
-                    <label for="tokens">Max Tokens: <span id="tokens-value">4096</span></label>
-                    <input type="range" id="tokens" min="1" max="4096" step="1" value="4096">
-                </div>
-                <div class="setting">
-                    <label for="system-prompt">System Prompt:</label>
-                    <textarea id="system-prompt" rows="4" class="w-full p-2 border rounded">You are a helpful chat bot that can analyze images, documents, and answer questions about them.</textarea>
-                </div>
-                <button id="save-settings">Save Settings</button>
-            </div>
+       <!-- Settings Modal -->
+<div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Settings</h2>
+        <div class="setting">
+            <label for="temperature">
+                Temperature: <span id="temperature-value">0.7</span>
+                <span class="info-icon" title="Controls randomness: Lower values make the output more focused and deterministic, higher values make it more creative and diverse.">ⓘ</span>
+            </label>
+            <input type="range" id="temperature" min="0" max="1" step="0.01" value="0.7">
         </div>
+        <div class="setting">
+            <label for="top-p">
+                Top P: <span id="top-p-value">0.9</span>
+                <span class="info-icon" title="Nucleus sampling: Limits the cumulative probability of token selection, balancing diversity and coherence.">ⓘ</span>
+            </label>
+            <input type="range" id="top-p" min="0" max="1" step="0.01" value="0.9">
+        </div>
+        <div class="setting">
+            <label for="top-k">
+                Top K: <span id="top-k-value">50</span>
+                <span class="info-icon" title="Limits the number of highest probability tokens to consider, helping to reduce repetition and nonsense.">ⓘ</span>
+            </label>
+            <input type="range" id="top-k" min="0" max="100" step="1" value="50">
+        </div>
+        <div class="setting">
+            <label for="tokens">
+                Max Tokens: <span id="tokens-value">4096</span>
+                <span class="info-icon" title="Sets the maximum length of the generated response in tokens (roughly 4 characters per token).">ⓘ</span>
+            </label>
+            <input type="range" id="tokens" min="1" max="4096" step="1" value="4096">
+        </div>
+        <div class="setting">
+            <label for="system-prompt">
+                System Prompt:
+                <span class="info-icon" title="Defines the initial context and behavior instructions for the AI model.">ⓘ</span>
+            </label>
+            <textarea id="system-prompt" rows="4" class="w-full p-2 border rounded">You are a helpful chat bot that can analyze images, documents, and answer questions about them.</textarea>
+        </div>
+        <button id="save-settings">Save Settings</button>
+    </div>
+</div>
     </div>
 </div>
 {% endblock %}

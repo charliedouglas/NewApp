@@ -1,6 +1,0 @@
-.env
-.venv
-test.ipynb
-tests-bedrock.py
-chatbot.db
-migrate-database.py
