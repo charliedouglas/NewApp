@@ -30,6 +30,8 @@ This is a Flask application that allows users to chat with the Anthropic Claude 
 
 6. Rename env.sample to '.env.
 
+7. Set up appropriate guardrails in Amazon Bedrock and populate details in the .env
+
 
 ## Usage
 

@@ -194,7 +194,8 @@ function addCopyButton(pre, block) {
 }
 
 function fetchBotResponse(message, fileData = null, fileType = null, fileName = null) {
-    const botMessageElement = appendMessage('bot', 'Generating...'); // Add this line
+    const botMessageElement = appendMessage('bot', 'Generating...');
+    let tokenUsage = null;
     const formData = new FormData();
     
     formData.append('user_input', message);
@@ -227,6 +228,9 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
             reader.read().then(({ done, value }) => {
                 if (done) {
                     console.log("Stream complete");
+                    if (tokenUsage) {
+                        displayTokenUsage(botMessageElement, tokenUsage);
+                    }
                     return;
                 }
 
@@ -249,6 +253,8 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
                                 addCopyButton(block.parentNode, block);
                             });
                             chatContainer.scrollTop = chatContainer.scrollHeight;
+                        } else if (data.type === 'token_usage') {
+                            tokenUsage = data.usage;
                         }
                     }
                 });
@@ -265,6 +271,30 @@ function fetchBotResponse(message, fileData = null, fileType = null, fileName = 
         console.error("Fetch error:", error);
         botMessageElement.innerHTML = 'Error: Failed to connect to the server. Please try again.';
     });
+}
+
+function displayTokenUsage(messageElement, usage) {
+    const usageElement = document.createElement('div');
+    usageElement.className = 'token-usage text-xs text-gray-500 mt-2 p-2 border-t border-gray-200';
+    
+    const formattedUsage = `
+        <div class="font-semibold mb-1">Token Usage:</div>
+        <div class="grid grid-cols-2 gap-1">
+            <span>Input Tokens:</span> <span class="text-right">${usage.inputTokens}</span>
+            <span>Output Tokens:</span> <span class="text-right">${usage.outputTokens}</span>
+            <span class="font-semibold">Total Tokens:</span> <span class="text-right font-semibold">${usage.totalTokens}</span>
+        </div>
+    `;
+    
+    usageElement.innerHTML = formattedUsage;
+    messageElement.appendChild(usageElement);
+}
+
+function displayTokenUsage(messageElement, usage) {
+    const usageElement = document.createElement('div');
+    usageElement.className = 'token-usage text-xs text-gray-500 mt-2';
+    usageElement.textContent = `Token usage: ${JSON.stringify(usage)}`;
+    messageElement.appendChild(usageElement);
 }
 
 function startNewChat() {

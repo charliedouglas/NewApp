@@ -18,19 +18,17 @@ import sqlite3
 from datetime import datetime
 from botocore.exceptions import ClientError
 
-# Add these near the top of your file, after other imports
-guardrail_id = "vbyxv56kxvtb"
-guardrail_version = "1"  # or the specific version you want to use
+load_dotenv()
+app = Flask(__name__)
+
 
 guardrail_config = {
-    "guardrailIdentifier": guardrail_id,
-    "guardrailVersion": guardrail_version,
+    "guardrailIdentifier": os.getenv("guardrail_id"),
+    "guardrailVersion": os.getenv("guardrail_version"),
     "trace": "enabled",
     "streamProcessingMode": "sync",
 }
 
-load_dotenv()
-app = Flask(__name__)
 
 bedrock = boto3.client(
     "bedrock-runtime",
@@ -185,6 +183,7 @@ def stream():
         )
 
     message_content = []
+    print(user_input)
     if user_input:
         message_content.append({"text": user_input})
         # Add guardrail content
