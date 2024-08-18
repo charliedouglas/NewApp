@@ -14,9 +14,21 @@ import logging
 import base64
 from io import BytesIO
 import uuid
+import sqlite3
+from datetime import datetime
+from botocore.exceptions import ClientError
 
 load_dotenv()
 app = Flask(__name__)
+
+
+guardrail_config = {
+    "guardrailIdentifier": os.getenv("guardrail_id"),
+    "guardrailVersion": os.getenv("guardrail_version"),
+    "trace": "enabled",
+    "streamProcessingMode": "sync",
+}
+
 
 bedrock = boto3.client(
     "bedrock-runtime",
@@ -24,6 +36,83 @@ bedrock = boto3.client(
     aws_secret_access_key=os.getenv("AWS_SECRET_ACCESS_KEY"),
     region_name=os.getenv("AWS_REGION"),
 )
+
+
+def init_db():
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        """CREATE TABLE IF NOT EXISTS conversations
+                 (id INTEGER PRIMARY KEY AUTOINCREMENT,
+                  conversation_id TEXT,
+                  timestamp DATETIME,
+                  sender TEXT,
+                  message TEXT,
+                  file_data TEXT,
+                  file_type TEXT)"""
+    )
+    conn.commit()
+    conn.close()
+
+
+def save_message(conversation_id, sender, message, file_data=None, file_type=None):
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        "INSERT INTO conversations (conversation_id, timestamp, sender, message, file_data, file_type) VALUES (?, ?, ?, ?, ?, ?)",
+        (conversation_id, datetime.now(), sender, message, file_data, file_type),
+    )
+    conn.commit()
+    conn.close()
+
+
+@app.route("/get_all_conversations", methods=["GET"])
+def get_all_conversations_route():
+    page = int(request.args.get("page", 1))
+    per_page = 10
+    offset = (page - 1) * per_page
+
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+
+    # Get total count of conversations
+    c.execute("SELECT COUNT(DISTINCT conversation_id) FROM conversations")
+    total_conversations = c.fetchone()[0]
+
+    # Get paginated conversations
+    c.execute(
+        """
+        SELECT conversation_id, MAX(timestamp) as last_update 
+        FROM conversations 
+        GROUP BY conversation_id 
+        ORDER BY last_update DESC
+        LIMIT ? OFFSET ?
+    """,
+        (per_page, offset),
+    )
+
+    conversations = c.fetchall()
+    conn.close()
+
+    formatted_conversations = [
+        (
+            conv_id,
+            (
+                last_update.isoformat()
+                if isinstance(last_update, datetime)
+                else last_update
+            ),
+        )
+        for conv_id, last_update in conversations
+    ]
+
+    return jsonify(
+        {
+            "conversations": formatted_conversations,
+            "total_pages": (total_conversations + per_page - 1) // per_page,
+            "current_page": page,
+        }
+    )
 
 
 @app.route("/")
@@ -67,6 +156,12 @@ def stream():
     image_data = request.form.get("image_data")
     document_data = request.form.get("document_data")
     document_name = request.form.get("document_name")
+    conversation_id = request.form.get("conversation_id")
+
+    file_data = image_data or document_data
+    file_type = "image" if image_data else "document" if document_data else None
+
+    save_message(conversation_id, "user", user_input, file_data, file_type)
 
     # Get the settings from the request
     temperature = float(request.form.get("temperature", 0.7))
@@ -88,8 +183,11 @@ def stream():
         )
 
     message_content = []
+    print(user_input)
     if user_input:
         message_content.append({"text": user_input})
+        # Add guardrail content
+        message_content.append({"guardContent": {"text": {"text": user_input}}})
 
     if image_data:
         image_bytes = base64.b64decode(image_data)
@@ -134,6 +232,7 @@ def stream():
                 system=system_prompts,
                 inferenceConfig=inference_config,
                 additionalModelRequestFields=additional_model_fields,
+                guardrailConfig=guardrail_config,
             )
             stream = response.get("stream")
             if stream:
@@ -152,6 +251,10 @@ def stream():
                                 {"text": full_content.strip()}
                             ]
                             messages.append(assistant_message)
+                            # Save assistant message
+                            save_message(
+                                conversation_id, "assistant", full_content.strip()
+                            )
                         yield f"data: {json.dumps({'type': 'message_stop', 'reason': event['messageStop']['stopReason']})}\n\n"
                     if "metadata" in event:
                         metadata = event["metadata"]
@@ -169,5 +272,60 @@ def stream():
     return Response(stream_with_context(generate()), content_type="text/event-stream")
 
 
+def get_conversation_history(conversation_id):
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    c.execute(
+        "SELECT timestamp, sender, message, file_data, file_type FROM conversations WHERE conversation_id = ? ORDER BY timestamp",
+        (conversation_id,),
+    )
+    history = c.fetchall()
+    conn.close()
+    return [
+        {
+            "timestamp": ts,
+            "sender": sender,
+            "message": msg,
+            "fileData": fd,
+            "fileType": ft,
+        }
+        for ts, sender, msg, fd, ft in history
+    ]
+
+
+@app.route("/get_history", methods=["GET"])
+def get_history():
+    conversation_id = request.args.get("conversation_id")
+    history = get_conversation_history(conversation_id)
+    return jsonify(history)
+
+
+@app.route("/delete_conversation", methods=["DELETE"])
+def delete_conversation():
+    conversation_id = request.args.get("conversation_id")
+    if not conversation_id:
+        return (
+            jsonify({"status": "error", "message": "No conversation ID provided"}),
+            400,
+        )
+
+    conn = sqlite3.connect("chatbot.db")
+    c = conn.cursor()
+    try:
+        c.execute(
+            "DELETE FROM conversations WHERE conversation_id = ?", (conversation_id,)
+        )
+        conn.commit()
+        return jsonify(
+            {"status": "success", "message": "Conversation deleted successfully"}
+        )
+    except Exception as e:
+        conn.rollback()
+        return jsonify({"status": "error", "message": str(e)}), 500
+    finally:
+        conn.close()
+
+
 if __name__ == "__main__":
+    init_db()
     app.run(debug=True)
