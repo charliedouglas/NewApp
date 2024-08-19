@@ -1,9 +1,0 @@
-Flask==2.2.5
-boto3==1.34.153
-json
-os
-dotenv
-logging
-base64
-io
-uuid
