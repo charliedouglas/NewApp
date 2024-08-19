@@ -1,0 +1,117 @@
+{% extends "base.html" %}
+{% block title %}Chatbot{% endblock %}
+{% block content %}
+<div class="flex h-screen w-full">
+    <!-- Sidebar -->
+    <div id="sidebar" class="bg-gray-800 text-white w-64 space-y-6 py-7 px-2 absolute inset-y-0 left-0 transform -translate-x-full md:relative md:translate-x-0 transition duration-200 ease-in-out">
+        <button id="sidebar-toggle" class="md:hidden absolute right-0 top-0 mt-4 -mr-8 bg-gray-800 text-white p-2 rounded-r">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg">
+                <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 6h16M4 12h16M4 18h16"></path>
+            </svg>
+        </button>
+        <nav>
+            <a href="#" id="new-chat" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">New Chat</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Help</a>
+            <a href="#" class="block py-2.5 px-4 rounded transition duration-200 hover:bg-gray-700">Settings</a>
+        </nav>
+        <div class="conversation-history">
+            <h3 class="text-lg font-semibold mb-2">Conversation History</h3>
+            <ul id="conversation-list" class="space-y-2">
+                <!-- Conversation history items will be populated here -->
+            </ul>
+            <div id="pagination-controls" class="mt-4 flex justify-between items-center">
+                <!-- Pagination controls will be populated here -->
+            </div>
+        </div>
+        
+    </div>
+
+    <!-- Main Content -->
+    <div class="flex-1 flex flex-col overflow-hidden">
+        <div id="chatbot-container" class="chatbot-container flex-1 flex flex-col">
+            <header class="chatbot-header">
+                <h1>Chatbot</h1>
+            </header>
+            <main id="chat-container" class="chat-messages flex-1 overflow-y-auto"></main>
+            <footer class="chat-input-container">
+                <div id="file-preview" class="file-preview" style="display: none;">
+                    <div class="preview-content"></div>
+                </div>
+                <form id="chat-form" class="chat-form">
+                    <div class="input-wrapper">
+                        <textarea id="user-input" class="chat-input" placeholder="Type a message..." rows="1" onpaste="handlePaste(event)"></textarea>
+                        <div class="input-actions">
+                            <label for="file-upload" class="attachment-icon" title="Attach file: Image, TXT, PDF, DOC, DOCX (Max 5)">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <path d="M21.44 11.05l-9.19 9.19a6 6 0 0 1-8.49-8.49l9.19-9.19a4 4 0 0 1 5.66 5.66l-9.2 9.19a2 2 0 0 1-2.83-2.83l8.49-8.48"></path>
+                                </svg>
+                            </label>
+                            <input id="file-upload" type="file" accept="image/*,.txt,.pdf,.doc,.docx" style="display: none;" multiple>
+                            <button type="submit" class="chat-submit">
+                                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                                    <line x1="12" y1="19" x2="12" y2="5"></line>
+                                    <polyline points="5 12 12 5 19 12"></polyline>
+                                </svg>
+                            </button>
+                        </div>
+                    </div>
+                    <div class="input-info">Use shift + enter for new line</div>
+                </form>
+            </footer>
+        </div>
+       <!-- Settings Modal -->
+<div id="settings-modal" class="modal hidden">
+    <div class="modal-content">
+        <span class="close">&times;</span>
+        <h2>Settings</h2>
+        <div class="setting">
+            <label for="temperature">
+                Temperature: <span id="temperature-value">0.7</span>
+                <span class="info-icon" title="Controls randomness: Lower values make the output more focused and deterministic, higher values make it more creative and diverse.">ⓘ</span>
+            </label>
+            <input type="range" id="temperature" min="0" max="1" step="0.01" value="0.7">
+        </div>
+        <div class="setting">
+            <label for="top-p">
+                Top P: <span id="top-p-value">0.9</span>
+                <span class="info-icon" title="Nucleus sampling: Limits the cumulative probability of token selection, balancing diversity and coherence.">ⓘ</span>
+            </label>
+            <input type="range" id="top-p" min="0" max="1" step="0.01" value="0.9">
+        </div>
+        <div class="setting">
+            <label for="top-k">
+                Top K: <span id="top-k-value">50</span>
+                <span class="info-icon" title="Limits the number of highest probability tokens to consider, helping to reduce repetition and nonsense.">ⓘ</span>
+            </label>
+            <input type="range" id="top-k" min="0" max="100" step="1" value="50">
+        </div>
+        <div class="setting">
+            <label for="tokens">
+                Max Tokens: <span id="tokens-value">4096</span>
+                <span class="info-icon" title="Sets the maximum length of the generated response in tokens (roughly 4 characters per token).">ⓘ</span>
+            </label>
+            <input type="range" id="tokens" min="1" max="4096" step="1" value="4096">
+        </div>
+        <div class="setting">
+            <label for="system-prompt">
+                System Prompt:
+                <span class="info-icon" title="Defines the initial context and behavior instructions for the AI model.">ⓘ</span>
+            </label>
+            <textarea id="system-prompt" rows="4" class="w-full p-2 border rounded">You are a helpful chat bot that can analyze images, documents, and answer questions about them.</textarea>
+        </div>
+        <button id="save-settings">Save Settings</button>
+    </div>
+</div>
+    </div>
+</div>
+{% endblock %}
+
+{% block scripts %}
+
+<script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/highlight.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dompurify/2.3.10/purify.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/highlight.js/11.5.1/styles/atom-one-dark.min.css">
+<script src="{{ url_for('static', filename='js/chat.js') }}"></script>
+
+{% endblock %}
